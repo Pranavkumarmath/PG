@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Math Treasure Hunt</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: linear-gradient(to right, #ff9a9e, #fad0c4, #fbc2eb);
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      font-size: 36px;
+      color: #fff;
+      margin-top: 20px;
+    }
+    .game-box, .auth-box {
+      margin: 20px auto;
+      padding: 20px;
+      border-radius: 15px;
+      background-color: #ffffff;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      width: 90%;
+      max-width: 500px;
+    }
+    .input-field {
+      font-size: 18px;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      border: 2px solid #ddd;
+      width: 80%;
+    }
+    .btn {
+      font-size: 18px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+    }
+    .btn:hover {
+      background-color: #45a049;
+    }
+    .timer {
+      font-size: 18px;
+      color: #ff5722;
+      margin-bottom: 10px;
+    }
+    .result, .error-message {
+      margin-top: 10px;
+      font-size: 18px;
+      color: #555;
+    }
+    .leaderboard {
+      margin-top: 30px;
+      background-color: #fff5e1;
+      padding: 10px;
+      border-radius: 10px;
+    }
+    .leaderboard h2 {
+      margin-bottom: 10px;
+      font-size: 20px;
+      color: #333;
+    }
+    .leaderboard ul {
+      list-style: none;
+      padding: 0;
+    }
+    .leaderboard li {
+      font-size: 16px;
+      margin: 5px 0;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Math Treasure Hunt</h1>
+
+<!-- Authentication Section -->
+<div id="auth-box" class="auth-box">
+  <h2>Sign In or Create Account</h2>
+  <input type="text" id="username" class="input-field" placeholder="Username">
+  <input type="password" id="password" class="input-field" placeholder="Password">
+  <button class="btn" onclick="signIn()">Sign In</button>
+  <button class="btn" onclick="createAccount()">Create Account</button>
+  <p id="auth-message" class="result"></p>
+</div>
+
+<!-- Game Section -->
+<div id="game-box" class="game-box" style="display: none;">
+  <div id="timer" class="timer">Time Left: 20s</div>
+  <p id="question" class="question">Get ready to solve the first clue!</p>
+  <input type="number" id="answer" class="input-field" placeholder="Enter your answer">
+  <button id="submit-btn" class="btn" onclick="checkAnswer()">Submit</button>
+  <p id="result" class="result"></p>
+</div>
+
+<!-- Leaderboard Section -->
+<div class="leaderboard">
+  <h2>Leaderboard</h2>
+  <ul id="leaderboard-list"></ul>
+</div>
+
+<script>
+  // Pool of randomized questions
+  const questions = [
+    { question: "What is 5 + 7?", answer: 12 },
+    { question: "What is 8 × 3?", answer: 24 },
+    { question: "What is 15 - 9?", answer: 6 },
+    { question: "What is 100 ÷ 4?", answer: 25 },
+    { question: "What is 6 × 7?", answer: 42 },
+    { question: "What is the square root of 64?", answer: 8 },
+    { question: "What is 9²?", answer: 81 },
+    { question: "What is 45 + 55?", answer: 100 }
+  ];
+
+  let currentQuestionIndex;
+  let timer;
+  let timeLeft = 20; // 20 seconds per question
+  let score = 0;
+  let loggedInUser = null;
+
+  // Local Storage Keys
+  const USERS_KEY = "mathTreasureHuntUsers";
+  const LEADERBOARD_KEY = "mathTreasureHuntLeaderboard";
+
+  // Sign In Function
+  function signIn() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const users = JSON.parse(localStorage.getItem(USERS_KEY)) || {};
+    const authMessage = document.getElementById("auth-message");
+
+    if (users[username] && users[username] === password) {
+      loggedInUser = username;
+      authMessage.textContent = `Welcome back, ${username}!`;
+      startGame();
+    } else {
+      authMessage.textContent = "Invalid username or password.";
+    }
+  }
+
+  // Create Account Function
+  function createAccount() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const users = JSON.parse(localStorage.getItem(USERS_KEY)) || {};
+    const authMessage = document.getElementById("auth-message");
+
+    if (users[username]) {
+      authMessage.textContent = "Username already exists. Please choose another.";
+    } else if (username && password) {
+      users[username] = password;
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      authMessage.textContent = "Account created successfully! Please sign in.";
+    } else {
+      authMessage.textContent = "Please fill in both fields.";
+    }
+  }
+
+  // Start Game Function
+  function startGame() {
+    document.getElementById("auth-box").style.display = "none";
+    document.getElementById("game-box").style.display = "block";
+    displayQuestion();
+    startTimer();
+  }
+
+  // Timer Function
+  function startTimer() {
+    clearInterval(timer);
+    timeLeft = 20;
+    updateTimerDisplay();
+    timer = setInterval(() => {
+      timeLeft--;
+      updateTimerDisplay();
+      if (timeLeft <= 0) {
+        clearInterval(timer);
+        showGameOver();
+      }
+    }, 1000);
+  }
+
+  function updateTimerDisplay() {
+    document.getElementById("timer").textContent = `Time Left: ${timeLeft}s`;
+  }
+
+  // Question Functions
+  function getRandomQuestion() {
+    currentQuestionIndex = Math.floor(Math.random() * questions.length);
+    return questions[currentQuestionIndex];
+  }
+
+  function displayQuestion() {
+    const questionObj = getRandomQuestion();
+    document.getElementById("question").textContent = questionObj.question;
+    document.getElementById("answer").value = "";
+    document.getElementById("result").textContent = "";
+  }
+
+  function checkAnswer() {
+    const userAnswer = parseInt(document.getElementById("answer").value);
+    const correctAnswer = questions[currentQuestionIndex].answer;
+
+    if (isNaN(userAnswer)) {
+      document.getElementById("result").textContent = "Please enter a valid number.";
+      return;
+    }
+
+    if (userAnswer === correctAnswer) {
+      score++;
+      document.getElementById("result").textContent = "Correct! Here's your next clue.";
+      displayQuestion();
+      startTimer();
+    } else {
+      document.getElementById("result").textContent = "Incorrect. Try again!";
+    }
+  }
+
+  // Game Over Function
+  function showGameOver() {
+    clearInterval(timer);
+    document.getElementById("question").textContent = `Game Over! Your score: ${score}`;
+    document.getElementById("submit-btn").disabled = true;
+    document.getElementById("answer").style.display = "none";
+    updateLeaderboard();
+  }
+
+  // Leaderboard Function
+  function updateLeaderboard() {
+    const leaderboard = JSON.parse(localStorage.getItem(LEADERBOARD_KEY)) || [];
+    leaderboard.push({ username: loggedInUser, score });
+    leaderboard.sort((a, b) => b.score - a.score);
+    localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
+
+    const leaderboardList = document.getElementById("leaderboard-list");
+    leaderboardList.innerHTML = leaderboard
+      .map(entry => `<li>${entry.username}: ${entry.score} points</li>`)
+      .join("");
+  }
+</script>
+
+</body>
+</html>
